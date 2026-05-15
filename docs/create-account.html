@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create Account | Intake Assistance</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="login-active">
+    <section id="login-screen" class="login-screen">
+      <form id="create-account-form" class="login-card">
+        <div>
+          <p class="eyebrow">Secure Access</p>
+          <h1>Create Account</h1>
+        </div>
+
+        <div class="field-grid">
+          <label>
+            First name
+            <input name="firstName" autocomplete="given-name" required>
+          </label>
+          <label>
+            Last name
+            <input name="lastName" autocomplete="family-name" required>
+          </label>
+        </div>
+        <label>
+          Username
+          <input name="username" autocomplete="username" required>
+        </label>
+        <label>
+          Bar number
+          <input name="barNumber" inputmode="numeric" required>
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="new-password" required>
+        </label>
+
+        <p id="create-account-error" class="login-error" role="alert" hidden></p>
+        <button type="submit">Create Account</button>
+        <a class="auth-link" href="index.html">Back to Sign In</a>
+      </form>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Intake Assistance</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <section id="login-screen" class="login-screen">
+      <form id="login-form" class="login-card">
+        <div>
+          <p class="eyebrow">Secure Access</p>
+          <h1>Sign In</h1>
+        </div>
+
+        <label>
+          Username
+          <input name="username" autocomplete="username" required>
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+
+        <p id="login-error" class="login-error" role="alert" hidden></p>
+        <button type="submit">Sign In</button>
+        <a class="auth-link" href="create-account.html">Create Account</a>
+      </form>
+    </section>
+
+    <main class="app-shell">
+      <section class="workspace">
+        <form id="intake-form" class="intake-form">
+          <header class="app-header">
+            <div>
+              <p class="eyebrow">Case Intake</p>
+              <h1>Intake Assistance</h1>
+              <p id="signed-in-user" class="signed-in-user"></p>
+            </div>
+            <div class="header-actions">
+              <button type="reset" class="ghost-button">Clear</button>
+              <button type="button" id="logout-button" class="ghost-button">Log Out</button>
+            </div>
+          </header>
+
+          <section class="form-section">
+            <h2>Client</h2>
+            <div class="field-grid">
+              <label>
+                Attorney name
+                <input name="attorneyName" required>
+              </label>
+              <label>
+                Client name
+                <input name="clientName" required>
+              </label>
+              <label>
+                Client birthdate
+                <input name="clientBirthdate" type="date" required>
+              </label>
+              <label>
+                XREF
+                <input name="xref" required>
+              </label>
+              <label>
+                Court date
+                <input name="courtDate" type="date" required>
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h2>Charge</h2>
+            <div class="segmented" role="radiogroup" aria-label="Crime type">
+              <label>
+                <input type="radio" name="crimeType" value="felony" checked>
+                <span>Felony</span>
+              </label>
+              <label>
+                <input type="radio" name="crimeType" value="misdemeanor">
+                <span>Misdemeanor</span>
+              </label>
+            </div>
+
+            <label>
+              Charged offense(s)
+              <input name="chargedOffense" required>
+            </label>
+
+            <div id="felony-fields" class="field-grid charge-fields">
+              <label>
+                Base term
+                <input name="felonyBaseTerm" type="number" min="0" step="0.01">
+              </label>
+              <div class="subordinate-midterms">
+                <div id="subordinate-midterm-list" class="subordinate-midterm-list">
+                  <label>
+                    Subordinate midterm
+                    <input name="felonyMidterm" type="number" min="0" step="0.01">
+                  </label>
+                </div>
+                <button type="button" id="add-subordinate-midterm" class="ghost-button inline-button">
+                  Add subordinate midterm
+                </button>
+              </div>
+              <label class="checkbox-field">
+                <input type="checkbox" name="hasPotentialCharge">
+                <span>Potential charge</span>
+              </label>
+              <div id="potential-charge-fields" class="field-grid nested-fields" hidden>
+                <label>
+                  Potential base term
+                  <input name="potentialBaseTerm" type="number" min="0" step="0.01">
+                </label>
+                <label>
+                  Potential midterm
+                  <input name="potentialMidterm" type="number" min="0" step="0.01">
+                </label>
+              </div>
+            </div>
+
+            <div id="misdemeanor-fields" class="field-grid charge-fields" hidden>
+              <label>
+                Base term
+                <input name="misdemeanorBaseTerm" type="number" min="0" step="0.01">
+              </label>
+              <label>
+                Midterm
+                <input name="misdemeanorMidterm" type="number" min="0" step="0.01">
+              </label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h2>Case Details</h2>
+            <label>
+              Police report information
+              <textarea name="policeReport" rows="4" required></textarea>
+            </label>
+
+            <label class="checkbox-field">
+              <input type="checkbox" name="inCustodyCredit">
+              <span>Client is in custody</span>
+            </label>
+            <label id="custody-credit-field" hidden>
+              Days of in custody credit
+              <input name="custodyCredits" type="number" min="0" step="1">
+            </label>
+
+            <label>
+              Police report PDF
+              <input name="policeReportPdf" type="file" accept="application/pdf">
+            </label>
+
+            <label class="checkbox-field">
+              <input type="checkbox" name="hasCriminalHistory">
+              <span>Client has criminal history</span>
+            </label>
+            <label id="criminal-history-field" hidden>
+              Criminal history details
+              <textarea name="historyDetails" rows="3"></textarea>
+            </label>
+            <label id="criminal-history-file-field" hidden>
+              Criminal history PDF
+              <input name="criminalHistoryPdf" type="file" accept="application/pdf">
+            </label>
+
+            <label class="checkbox-field">
+              <input type="checkbox" name="hasPleaDeal">
+              <span>There is a plea deal</span>
+            </label>
+            <label id="plea-deal-field" hidden>
+              Plea bargain
+              <textarea name="pleaBargain" rows="3"></textarea>
+            </label>
+
+            <label class="checkbox-field">
+              <input type="checkbox" name="clientsRightsExplained">
+              <span>Client's rights explained</span>
+            </label>
+            <label class="checkbox-field">
+              <input type="checkbox" name="mentalHealthDiversion">
+              <span>Mental Health Diversion referral</span>
+            </label>
+          </section>
+        </form>
+
+        <aside class="summary-panel" aria-live="polite">
+          <div class="summary-header">
+            <div>
+              <p class="eyebrow">Summary</p>
+              <h2 id="summary-title">Intake Summary</h2>
+            </div>
+            <button type="button" id="print-button">Print</button>
+          </div>
+          <div id="summary-output" class="summary-output"></div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
