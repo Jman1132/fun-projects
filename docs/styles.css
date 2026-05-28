@@ -191,6 +191,16 @@ h2 {
 .subordinate-midterms {
   display: grid;
   gap: 10px;
+  grid-column: 1 / -1;
+  padding-left: 14px;
+  border-left: 3px solid var(--line);
+}
+
+.nested-heading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .subordinate-midterm-list {
@@ -200,7 +210,7 @@ h2 {
 
 .subordinate-midterm-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
 }
@@ -211,6 +221,23 @@ label {
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 650;
+}
+
+.offense-status {
+  min-height: 1rem;
+  color: var(--focus-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.offense-status:empty {
+  display: none;
+}
+
+.offense-status.is-error,
+.offense-error,
+.summary-warning {
+  color: var(--danger);
 }
 
 input,
@@ -337,7 +364,7 @@ button:hover {
 
 .summary-row {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: 170px minmax(0, 1fr);
   gap: 10px;
   margin: 7px 0;
   font-size: 0.92rem;
@@ -346,6 +373,51 @@ button:hover {
 .summary-label {
   color: var(--muted);
   font-weight: 700;
+}
+
+.code-text {
+  line-height: 1.45;
+}
+
+.code-details {
+  margin-bottom: 12px;
+}
+
+.code-details summary {
+  cursor: pointer;
+}
+
+.code-details summary span {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+}
+
+.code-full-text {
+  margin-top: 10px;
+  padding-left: 12px;
+  border-left: 3px solid var(--line);
+}
+
+.code-source {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.offense-loading {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.summary-warning {
+  margin-top: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.subordinate-offense {
+  margin-bottom: 12px;
 }
 
 .exposure {

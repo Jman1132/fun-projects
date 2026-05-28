@@ -82,15 +82,22 @@ function updateAuthView() {
   const user = getCurrentUser();
   const isLoggedIn = Boolean(user);
 
-  document.body.classList.toggle("login-active", !isLoggedIn);
-  loginScreen?.setAttribute("aria-hidden", String(isLoggedIn));
+  document.body.classList.remove("login-active");
+  loginScreen?.setAttribute("aria-hidden", "true");
   if (signedInUser) {
-    signedInUser.textContent = isLoggedIn ? `Signed in as ${getAccountDisplayName(user)}` : "";
+    signedInUser.textContent = isLoggedIn
+      ? `Signed in as ${getAccountDisplayName(user)}`
+      : "Using without an account";
   }
+  if (logoutButton) {
+    logoutButton.textContent = isLoggedIn ? "Log Out" : "Sign In";
+  }
+}
 
-  if (!isLoggedIn && loginForm) {
-    showAuthView("login");
-  }
+function openLoginView() {
+  document.body.classList.add("login-active");
+  loginScreen?.setAttribute("aria-hidden", "false");
+  showAuthView("login");
 }
 
 function getFormValue(name) {
@@ -400,8 +407,19 @@ if (createAccountForm) {
 }
 
 logoutButton?.addEventListener("click", () => {
+  if (!getCurrentUser()) {
+    openLoginView();
+    return;
+  }
+
   clearCurrentUser();
   updateAuthView();
+});
+
+loginScreen?.addEventListener("click", (event) => {
+  if (event.target.matches("[data-continue-without-account]")) {
+    updateAuthView();
+  }
 });
 
 printButton?.addEventListener("click", () => {

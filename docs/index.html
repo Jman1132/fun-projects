@@ -10,22 +10,18 @@
     <section id="login-screen" class="login-screen">
       <form id="login-form" class="login-card">
         <div>
-          <p class="eyebrow">Secure Access</p>
-          <h1>Sign In</h1>
+          <p class="eyebrow">Optional</p>
+          <h1>Name This Session</h1>
         </div>
 
         <label>
-          Username
-          <input name="username" autocomplete="username" required>
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" autocomplete="current-password" required>
+          Display name
+          <input name="displayName" autocomplete="name" placeholder="e.g., Attorney Smith" required>
         </label>
 
         <p id="login-error" class="login-error" role="alert" hidden></p>
-        <button type="submit">Sign In</button>
-        <a class="auth-link" href="create-account.html">Create Account</a>
+        <button type="submit">Use This Name</button>
+        <button type="button" class="ghost-button" data-continue-without-account>Continue without account</button>
       </form>
     </section>
 
@@ -40,7 +36,7 @@
             </div>
             <div class="header-actions">
               <button type="reset" class="ghost-button">Clear</button>
-              <button type="button" id="logout-button" class="ghost-button">Log Out</button>
+              <button type="button" id="logout-button" class="ghost-button">Name Session</button>
             </div>
           </header>
 
@@ -85,7 +81,8 @@
 
             <label>
               Charged offense(s)
-              <input name="chargedOffense" required>
+              <input name="chargedOffense" placeholder="e.g., 422(a), PC 187, 211" aria-describedby="charged-offense-status" required>
+              <span id="charged-offense-status" class="offense-status" data-offense-status-for="chargedOffense" aria-live="polite"></span>
             </label>
 
             <div id="felony-fields" class="field-grid charge-fields">
@@ -94,14 +91,10 @@
                 <input name="felonyBaseTerm" type="number" min="0" step="0.01">
               </label>
               <div class="subordinate-midterms">
-                <div id="subordinate-midterm-list" class="subordinate-midterm-list">
-                  <label>
-                    Subordinate midterm
-                    <input name="felonyMidterm" type="number" min="0" step="0.01">
-                  </label>
-                </div>
+                <h3 class="nested-heading">Subordinate offense</h3>
+                <div id="subordinate-midterm-list" class="subordinate-midterm-list"></div>
                 <button type="button" id="add-subordinate-midterm" class="ghost-button inline-button">
-                  Add subordinate midterm
+                  Add subordinate offense
                 </button>
               </div>
               <label class="checkbox-field">
@@ -148,11 +141,6 @@
               <input name="custodyCredits" type="number" min="0" step="1">
             </label>
 
-            <label>
-              Police report PDF
-              <input name="policeReportPdf" type="file" accept="application/pdf">
-            </label>
-
             <label class="checkbox-field">
               <input type="checkbox" name="hasCriminalHistory">
               <span>Client has criminal history</span>
@@ -161,11 +149,6 @@
               Criminal history details
               <textarea name="historyDetails" rows="3"></textarea>
             </label>
-            <label id="criminal-history-file-field" hidden>
-              Criminal history PDF
-              <input name="criminalHistoryPdf" type="file" accept="application/pdf">
-            </label>
-
             <label class="checkbox-field">
               <input type="checkbox" name="hasPleaDeal">
               <span>There is a plea deal</span>
@@ -199,6 +182,7 @@
       </section>
     </main>
 
+    <script src="penal-code-utils.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

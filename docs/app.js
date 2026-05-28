@@ -1,13 +1,6 @@
-const DEMO_USER = {
-  username: "attorney@example.com",
-  password: "password123",
-};
-
 const loginScreen = document.querySelector("#login-screen");
 const loginForm = document.querySelector("#login-form");
-const createAccountForm = document.querySelector("#create-account-form");
 const loginError = document.querySelector("#login-error");
-const createAccountError = document.querySelector("#create-account-error");
 const signedInUser = document.querySelector("#signed-in-user");
 const logoutButton = document.querySelector("#logout-button");
 const form = document.querySelector("#intake-form");
@@ -19,78 +12,100 @@ const subordinateMidtermList = document.querySelector("#subordinate-midterm-list
 const addSubordinateMidtermButton = document.querySelector("#add-subordinate-midterm");
 const custodyCreditField = document.querySelector("#custody-credit-field");
 const criminalHistoryField = document.querySelector("#criminal-history-field");
-const criminalHistoryFileField = document.querySelector("#criminal-history-file-field");
 const pleaDealField = document.querySelector("#plea-deal-field");
 const printButton = document.querySelector("#print-button");
+let codeDetailsClosedForPrint = [];
+let penalCodeDataPromise = null;
+let penalCodeDataError = "";
 
-function getCurrentUser() {
-  return localStorage.getItem("sentencingAppUser") || "";
+function hasPenalCodeData() {
+  return Boolean(window.PENAL_CODE_DATA?.sections || window.PENAL_CODE_SECTIONS);
 }
 
-function setCurrentUser(email) {
-  localStorage.setItem("sentencingAppUser", email);
+function getPenalCodeSections() {
+  if (window.PENAL_CODE_DATA?.sections) {
+    return window.PENAL_CODE_DATA.sections;
+  }
+
+  if (window.PENAL_CODE_SECTIONS) {
+    return Object.fromEntries(
+      Object.entries(window.PENAL_CODE_SECTIONS).map(([section, text]) => [
+        section,
+        { text, sourceUrl: "", heading: "" },
+      ])
+    );
+  }
+
+  return {};
+}
+
+function loadPenalCodeData() {
+  if (hasPenalCodeData()) {
+    return Promise.resolve();
+  }
+
+  if (!penalCodeDataPromise) {
+    penalCodeDataPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "penal-code-data.js";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Unable to load Penal Code data."));
+      document.head.append(script);
+    })
+      .then(() => {
+        penalCodeDataError = "";
+        renderSummary();
+      })
+      .catch((error) => {
+        penalCodeDataError = error.message;
+        penalCodeDataPromise = null;
+        throw error;
+      });
+  }
+
+  return penalCodeDataPromise;
+}
+
+function getCurrentUser() {
+  return sessionStorage.getItem("sentencingAppDisplayName") || "";
+}
+
+function setCurrentUser(displayName) {
+  sessionStorage.setItem("sentencingAppDisplayName", displayName);
 }
 
 function clearCurrentUser() {
-  localStorage.removeItem("sentencingAppUser");
+  sessionStorage.removeItem("sentencingAppDisplayName");
 }
 
-function getAccounts() {
-  const rawAccounts = localStorage.getItem("sentencingAppAccounts");
-  if (!rawAccounts) {
-    return [];
-  }
-
-  try {
-    const accounts = JSON.parse(rawAccounts);
-    return Array.isArray(accounts) ? accounts : [];
-  } catch {
-    return [];
-  }
-}
-
-function setAccounts(accounts) {
-  localStorage.setItem("sentencingAppAccounts", JSON.stringify(accounts));
-}
-
-function getAccountDisplayName(username) {
-  const account = getAccounts().find((item) => item.username === username);
-  if (!account) {
-    return username;
-  }
-
-  return `${account.firstName} ${account.lastName}`;
-}
-
-function showAuthView(view) {
-  const isCreatingAccount = view === "create";
-  if (loginForm) {
-    loginForm.hidden = isCreatingAccount;
-  }
-  if (createAccountForm) {
-    createAccountForm.hidden = !isCreatingAccount;
-  }
+function clearSessionFormState() {
   if (loginError) {
     loginError.hidden = true;
+    loginError.textContent = "";
   }
-  if (createAccountError) {
-    createAccountError.hidden = true;
-  }
+  loginForm?.reset();
 }
 
 function updateAuthView() {
   const user = getCurrentUser();
   const isLoggedIn = Boolean(user);
 
-  document.body.classList.toggle("login-active", !isLoggedIn);
-  loginScreen?.setAttribute("aria-hidden", String(isLoggedIn));
+  document.body.classList.remove("login-active");
+  loginScreen?.setAttribute("aria-hidden", "true");
   if (signedInUser) {
-    signedInUser.textContent = isLoggedIn ? `Signed in as ${getAccountDisplayName(user)}` : "";
+    signedInUser.textContent = isLoggedIn
+      ? `Session name: ${user}`
+      : "Using without an account";
   }
+  if (logoutButton) {
+    logoutButton.textContent = isLoggedIn ? "Clear Name" : "Name Session";
+  }
+}
 
-  if (!isLoggedIn && loginForm) {
-    showAuthView("login");
-  }
+function openLoginView() {
+  document.body.classList.add("login-active");
+  loginScreen?.setAttribute("aria-hidden", "false");
+  clearSessionFormState();
 }
 
 function getFormValue(name) {
@@ -104,6 +119,26 @@ function getFormValue(name) {
 function getNumber(name) {
   const value = parseFloat(getFormValue(name));
   return Number.isFinite(value) ? value : 0;
+}
+
+function getNumberState(name, label) {
+  const rawValue = getFormValue(name);
+  if (!rawValue) {
+    return {
+      value: 0,
+      errors: [`${label} is needed.`],
+    };
+  }
+
+  const value = parseFloat(rawValue);
+  if (!Number.isFinite(value)) {
+    return {
+      value: 0,
+      errors: [`${label} must be a number.`],
+    };
+  }
+
+  return { value, errors: [] };
 }
 
 function getNumbers(name) {
@@ -141,55 +176,228 @@ function formatDate(value) {
   return `${month}/${day}/${year}`;
 }
 
-function formatFileSize(bytes) {
-  if (bytes < 1024) {
-    return `${bytes} bytes`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function getPdfSummary() {
-  if (!form) {
-    return "";
-  }
-
-  const file = form.elements.policeReportPdf?.files[0];
-  if (!file) {
-    return "";
-  }
-
-  return `${file.name} (${formatFileSize(file.size)})`;
-}
-
-function getCriminalHistoryPdfSummary() {
-  if (!form) {
-    return "";
-  }
-
-  const file = form.elements.criminalHistoryPdf?.files[0];
-  if (!file) {
-    return "";
-  }
-
-  return `${file.name} (${formatFileSize(file.size)})`;
-}
-
 function displayValue(value) {
-  return value || '<span class="missing">Missing</span>';
+  if (!value) {
+    return '<span class="missing">Missing</span>';
+  }
+
+  return escapeHtml(value);
 }
 
-function row(label, value) {
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+
+    return entities[character];
+  });
+}
+
+function formatMultilineText(value) {
+  return escapeHtml(value).replace(/\n/g, "<br>");
+}
+
+function row(label, value, options = {}) {
+  const display = options.html
+    ? value || '<span class="missing">Missing</span>'
+    : displayValue(value);
+
   return `
     <div class="summary-row">
       <div class="summary-label">${label}</div>
-      <div>${displayValue(value)}</div>
+      <div${options.className ? ` class="${options.className}"` : ""}>${display}</div>
     </div>
   `;
+}
+
+function getPenalCodeReferences(value) {
+  return window.PenalCodeUtils.parseReferences(value);
+}
+
+function formatPenalCodeReference(reference) {
+  return window.PenalCodeUtils.formatReference(reference);
+}
+
+function getApplicableSectionText(sectionText, reference) {
+  return window.PenalCodeUtils.getApplicableSectionText(sectionText, reference);
+}
+
+function getOffenseMatch(reference) {
+  const penalCodeSections = getPenalCodeSections();
+  const sectionRecord = penalCodeSections[reference.section];
+  const sectionText = sectionRecord?.text;
+  const formattedReference = formatPenalCodeReference(reference);
+
+  if (penalCodeDataError) {
+    return {
+      formattedReference,
+      error: penalCodeDataError,
+    };
+  }
+
+  if (!hasPenalCodeData()) {
+    return {
+      formattedReference,
+      loading: true,
+    };
+  }
+
+  if (!sectionText) {
+    return {
+      formattedReference,
+      error: `Penal Code section ${formattedReference} was not found in the loaded Part 1 code data.`,
+    };
+  }
+
+  const applicableText = getApplicableSectionText(sectionText, reference);
+  if (!applicableText) {
+    return {
+      formattedReference,
+      error: `Penal Code section ${formattedReference} was found, but that subdivision was not found in the loaded code text.`,
+    };
+  }
+
+  return {
+    formattedReference,
+    text: applicableText,
+    sourceUrl: sectionRecord.sourceUrl,
+    heading: sectionRecord.heading,
+  };
+}
+
+function getTextPreview(text) {
+  return window.PenalCodeUtils.getTextPreview(text);
+}
+
+function getOffenseSummary(offense) {
+  const references = getPenalCodeReferences(offense);
+
+  if (!references) {
+    return displayValue(offense);
+  }
+
+  if (!references.length) {
+    return displayValue("");
+  }
+
+  return references
+    .map((reference) => {
+      const match = getOffenseMatch(reference);
+
+      if (match.loading) {
+        return `<div class="offense-loading">Loading Penal Code ${escapeHtml(match.formattedReference)}...</div>`;
+      }
+
+      if (match.error) {
+        return `<div class="offense-error">${formatMultilineText(match.error)}</div>`;
+      }
+
+      return `
+        <details class="code-details">
+          <summary>
+            <strong>Penal Code ${escapeHtml(match.formattedReference)}</strong>
+            <span>${formatMultilineText(getTextPreview(match.text))}</span>
+          </summary>
+          <div class="code-full-text">${formatMultilineText(match.text)}</div>
+          ${
+            match.sourceUrl
+              ? `<div class="code-source">Source: <a href="${escapeHtml(match.sourceUrl)}" target="_blank" rel="noreferrer">LegInfo</a></div>`
+              : ""
+          }
+        </details>
+      `;
+    })
+    .join("");
+}
+
+function getChargedOffenseSummary() {
+  return getOffenseSummary(getFormValue("chargedOffense"));
+}
+
+function getSubordinateOffenseSummary() {
+  if (!form) {
+    return "";
+  }
+
+  const offenses = new FormData(form)
+    .getAll("felonySubordinateOffense")
+    .map((offense) => offense.toString().trim())
+    .filter(Boolean);
+
+  if (!offenses.length) {
+    return "";
+  }
+
+  return offenses
+    .map(
+      (offense, index) =>
+        `<div class="subordinate-offense"><strong>Subordinate ${index + 1}</strong><br>${getOffenseSummary(
+          offense
+        )}</div>`
+    )
+    .join("<br>");
+}
+
+function getOffenseStatus(value) {
+  const references = getPenalCodeReferences(value);
+  if (!references || !references.length) {
+    return "";
+  }
+
+  const matches = references.map(getOffenseMatch);
+  if (matches.some((match) => match.loading)) {
+    return "Loading Penal Code data...";
+  }
+
+  const failedMatch = matches.find((match) => match.error);
+  if (failedMatch) {
+    return failedMatch.error;
+  }
+
+  return `Matched ${matches
+    .map((match) => `Penal Code ${match.formattedReference}`)
+    .join(", ")}`;
+}
+
+function updateOffenseStatus(input) {
+  const field =
+    input.closest("label")?.querySelector(".offense-status") ||
+    document.querySelector(`[data-offense-status-for="${input.name}"]`);
+
+  if (!field) {
+    return;
+  }
+
+  const status = getOffenseStatus(input.value.trim());
+  field.textContent = status;
+  field.classList.toggle("is-error", status.includes("not found"));
+}
+
+function updateOffenseStatuses() {
+  document
+    .querySelectorAll('input[name="chargedOffense"], input[name="felonySubordinateOffense"]')
+    .forEach(updateOffenseStatus);
+}
+
+function hasOffenseInputValue() {
+  return Array.from(
+    document.querySelectorAll('input[name="chargedOffense"], input[name="felonySubordinateOffense"]')
+  ).some((input) => input.value.trim());
+}
+
+function renderAndLoadPenalCodeDataIfNeeded() {
+  renderSummary();
+
+  if (hasOffenseInputValue() && !hasPenalCodeData()) {
+    loadPenalCodeData().catch(() => {
+      renderSummary();
+    });
+  }
 }
 
 function clearExtraSubordinateMidterms() {
@@ -198,35 +406,65 @@ function clearExtraSubordinateMidterms() {
     .forEach((row) => row.remove());
 }
 
+function clearSubordinateOffenses() {
+  subordinateMidtermList
+    ?.querySelectorAll('input[name="felonySubordinateOffense"]')
+    .forEach((input) => {
+      input.value = "";
+    });
+}
+
 function calculateExposure() {
   const crimeType = getFormValue("crimeType") || "felony";
 
   if (crimeType === "felony") {
-    const baseTerm = getNumber("felonyBaseTerm");
-    const subordinateTerms = getNumbers("felonyMidterm").reduce(
-      (total, midterm) => total + midterm * 0.33,
-      0
+    const baseTerm = getNumberState("felonyBaseTerm", "Felony base term");
+    const errors = [...baseTerm.errors];
+    const subordinateRows = Array.from(
+      subordinateMidtermList?.querySelectorAll(".subordinate-midterm-row") || []
     );
-    const totalFelony = baseTerm + subordinateTerms;
-    const potentialCharge = isChecked("hasPotentialCharge")
-      ? getNumber("potentialBaseTerm") + getNumber("potentialMidterm") * 0.33
-      : null;
+    const subordinateTerms = subordinateRows.reduce((total, row, index) => {
+      const offense = row.querySelector('input[name="felonySubordinateOffense"]')?.value.trim();
+      const midtermInput = row.querySelector('input[name="felonyMidterm"]');
+      const midterm = parseFloat(midtermInput?.value || "");
+
+      if (offense && !Number.isFinite(midterm)) {
+        errors.push(`Subordinate ${index + 1} needs a midterm.`);
+        return total;
+      }
+      if (!offense && Number.isFinite(midterm)) {
+        errors.push(`Subordinate ${index + 1} needs a charged offense.`);
+      }
+
+      return Number.isFinite(midterm) ? total + midterm * 0.33 : total;
+    }, 0);
+
+    const totalFelony = baseTerm.value + subordinateTerms;
+    let potentialCharge = null;
+    if (isChecked("hasPotentialCharge")) {
+      const potentialBaseTerm = getNumberState("potentialBaseTerm", "Potential base term");
+      const potentialMidterm = getNumberState("potentialMidterm", "Potential midterm");
+      errors.push(...potentialBaseTerm.errors, ...potentialMidterm.errors);
+      potentialCharge = potentialBaseTerm.value + potentialMidterm.value * 0.33;
+    }
 
     return {
       label: "Total Felony Exposure",
       value: formatYears(totalFelony),
       potentialCharge: potentialCharge === null ? null : formatYears(potentialCharge),
+      errors,
     };
   }
 
-  const totalMisdemeanor =
-    getNumber("misdemeanorBaseTerm") +
-    getNumber("misdemeanorMidterm");
+  const baseTerm = getNumberState("misdemeanorBaseTerm", "Misdemeanor base term");
+  const midterm = getNumberState("misdemeanorMidterm", "Misdemeanor midterm");
+  const totalMisdemeanor = baseTerm.value + midterm.value;
 
   return {
     label: "Total Misdemeanor Exposure",
     value: formatYears(totalMisdemeanor),
     potentialCharge: null,
+    errors: [...baseTerm.errors, ...midterm.errors],
   };
 }
 
@@ -239,7 +477,6 @@ function updateFieldVisibility() {
   potentialChargeFields.hidden = !isChecked("hasPotentialCharge") || !isFelony;
   custodyCreditField.hidden = !isChecked("inCustodyCredit");
   criminalHistoryField.hidden = !isChecked("hasCriminalHistory");
-  criminalHistoryFileField.hidden = !isChecked("hasCriminalHistory");
   pleaDealField.hidden = !isChecked("hasPleaDeal");
 }
 
@@ -249,6 +486,7 @@ function renderSummary() {
   }
 
   updateFieldVisibility();
+  updateOffenseStatuses();
 
   const exposure = calculateExposure();
   const hasCriminalHistory = isChecked("hasCriminalHistory");
@@ -260,6 +498,7 @@ function renderSummary() {
   const clientName = getFormValue("clientName");
   const clientBirthdate = formatDate(getFormValue("clientBirthdate"));
   const attorneyName = getFormValue("attorneyName");
+  const subordinateOffenseSummary = getSubordinateOffenseSummary();
 
   const medicalRelease = mentalHealthDiversion
     ? `${clientName || "Client"} ${clientBirthdate || ""} hereby authorizes the release of medical information to the attorney, ${attorneyName || "Attorney"}, for the purpose of Mental Health Diversion. This disclosure of information is limited to records needed for that referral.`
@@ -278,8 +517,24 @@ function renderSummary() {
     <section class="summary-group">
       <h3>Charge</h3>
       ${row("Crime Type", getFormValue("crimeType"))}
-      ${row("Offense(s)", getFormValue("chargedOffense"))}
+      ${row("Charged Penal Code Text", getChargedOffenseSummary(), {
+        html: true,
+        className: "code-text",
+      })}
+      ${
+        subordinateOffenseSummary
+          ? row("Subordinate Penal Code Text", subordinateOffenseSummary, {
+              html: true,
+              className: "code-text",
+            })
+          : ""
+      }
       <div class="exposure">${exposure.label}: ${exposure.value}</div>
+      ${
+        exposure.errors.length
+          ? `<div class="summary-warning">${exposure.errors.map(escapeHtml).join("<br>")}</div>`
+          : ""
+      }
       ${
         exposure.potentialCharge
           ? `<div class="exposure">Potential Charge Exposure: ${exposure.potentialCharge}</div>`
@@ -291,13 +546,7 @@ function renderSummary() {
       <h3>Case Details</h3>
       ${row("Police Report", getFormValue("policeReport"))}
       ${row("In Custody Credit", inCustodyCredit ? `The client may be eligible for in custody credit. The client has ${formatYears(custodyCreditsYears)} years of in custody credit.` : "The client is not in custody and is not eligible for in custody credit.")}
-      ${row("Report PDF", getPdfSummary())}
       ${row("Criminal History", hasCriminalHistory ? getFormValue("historyDetails") : "No criminal history.")}
-      ${
-        hasCriminalHistory
-          ? row("History PDF", getCriminalHistoryPdfSummary())
-          : ""
-      }
       ${row("Plea Deal", hasPleaDeal ? getFormValue("pleaBargain") : "No plea deal.")}
       ${row("Rights", clientsRightsExplained ? "The client's rights have been explained." : "The client's rights have not been explained.")}
       ${row("Diversion", medicalRelease)}
@@ -306,11 +555,12 @@ function renderSummary() {
 }
 
 if (form) {
-  form.addEventListener("input", renderSummary);
-  form.addEventListener("change", renderSummary);
+  form.addEventListener("input", renderAndLoadPenalCodeDataIfNeeded);
+  form.addEventListener("change", renderAndLoadPenalCodeDataIfNeeded);
   form.addEventListener("reset", () => {
     requestAnimationFrame(() => {
       clearExtraSubordinateMidterms();
+      clearSubordinateOffenses();
       renderSummary();
     });
   });
@@ -319,18 +569,24 @@ if (form) {
 addSubordinateMidtermButton?.addEventListener("click", () => {
   const row = document.createElement("div");
   row.className = "subordinate-midterm-row";
+  const rowId = Date.now().toString(36);
   row.innerHTML = `
+    <label>
+      Subordinate charged offense
+      <input name="felonySubordinateOffense" placeholder="e.g., 422(a)" aria-describedby="subordinate-offense-status-${rowId}">
+      <span id="subordinate-offense-status-${rowId}" class="offense-status" aria-live="polite"></span>
+    </label>
     <label>
       Subordinate midterm
       <input name="felonyMidterm" type="number" min="0" step="0.01">
     </label>
-    <button type="button" class="ghost-button remove-subordinate-midterm" aria-label="Remove subordinate midterm">
+    <button type="button" class="ghost-button remove-subordinate-midterm" aria-label="Remove subordinate offense">
       Remove
     </button>
   `;
 
   subordinateMidtermList.append(row);
-  row.querySelector("input").focus();
+  row.querySelector('input[name="felonySubordinateOffense"]').focus();
   renderSummary();
 });
 
@@ -348,64 +604,51 @@ if (loginForm) {
   loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    const username = new FormData(loginForm).get("username")?.toString().trim().toLowerCase() || "";
-    const password = new FormData(loginForm).get("password")?.toString() || "";
-    const account = getAccounts().find((item) => item.username === username);
-
-    if (
-      (username === DEMO_USER.username && password === DEMO_USER.password) ||
-      (account && account.password === password)
-    ) {
-      setCurrentUser(username);
-      loginError.hidden = true;
-      loginError.textContent = "";
-      loginForm.reset();
-      updateAuthView();
+    const displayName = new FormData(loginForm).get("displayName")?.toString().trim() || "";
+    if (!displayName) {
+      loginError.textContent = "Enter a display name or continue without an account.";
+      loginError.hidden = false;
       return;
     }
 
-    loginError.textContent = "Invalid username or password.";
-    loginError.hidden = false;
-  });
-}
-
-if (createAccountForm) {
-  createAccountForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-
-    const formData = new FormData(createAccountForm);
-    const firstName = formData.get("firstName")?.toString().trim() || "";
-    const lastName = formData.get("lastName")?.toString().trim() || "";
-    const username = formData.get("username")?.toString().trim().toLowerCase() || "";
-    const barNumber = formData.get("barNumber")?.toString().trim() || "";
-    const password = formData.get("password")?.toString() || "";
-    const accounts = getAccounts();
-    const usernameTaken =
-      username === DEMO_USER.username || accounts.some((account) => account.username === username);
-
-    if (usernameTaken) {
-      createAccountError.textContent = "That username is already taken.";
-      createAccountError.hidden = false;
-      return;
-    }
-
-    accounts.push({ firstName, lastName, username, barNumber, password });
-    setAccounts(accounts);
-    setCurrentUser(username);
-    createAccountError.hidden = true;
-    createAccountError.textContent = "";
-    createAccountForm.reset();
-    window.location.href = "index.html";
+    setCurrentUser(displayName);
+    clearSessionFormState();
+    updateAuthView();
   });
 }
 
 logoutButton?.addEventListener("click", () => {
+  if (!getCurrentUser()) {
+    openLoginView();
+    return;
+  }
+
   clearCurrentUser();
   updateAuthView();
 });
 
+loginScreen?.addEventListener("click", (event) => {
+  if (event.target.matches("[data-continue-without-account]")) {
+    updateAuthView();
+  }
+});
+
 printButton?.addEventListener("click", () => {
   window.print();
+});
+
+window.addEventListener("beforeprint", () => {
+  codeDetailsClosedForPrint = Array.from(document.querySelectorAll(".code-details:not([open])"));
+  codeDetailsClosedForPrint.forEach((details) => {
+    details.open = true;
+  });
+});
+
+window.addEventListener("afterprint", () => {
+  codeDetailsClosedForPrint.forEach((details) => {
+    details.open = false;
+  });
+  codeDetailsClosedForPrint = [];
 });
 
 updateAuthView();
